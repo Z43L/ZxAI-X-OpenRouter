@@ -1,0 +1,112 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+@import "highlight.js/styles/github-dark.css";
+@import "katex/dist/katex.min.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #ffffff;
+  --foreground: #18181b;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+.dark {
+  --background: #09090b;
+  --foreground: #f4f4f5;
+}
+
+html,
+body {
+  height: 100%;
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(161 161 170 / 0.4);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Evita que el highlight rompa el layout en móvil */
+.prose pre {
+  margin: 0;
+}
+.prose code::before,
+.prose code::after {
+  content: none;
+}
+
+.katex {
+  color: inherit;
+  font-size: 1.1em;
+}
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+  margin: 0.75rem 0;
+}
+
+/* Monaco: mismo zinc que el resto de ZxAI, no el cromado de VS Code. */
+.zxai-monaco,
+.zxai-monaco .monaco-editor,
+.zxai-monaco .monaco-editor .overflow-guard,
+.zxai-monaco .monaco-editor .monaco-editor-background,
+.zxai-monaco .monaco-editor .margin,
+.zxai-monaco .monaco-editor .margin-view-overlays,
+.zxai-monaco .monaco-diff-editor,
+.zxai-monaco .monaco-diff-editor .overflow-guard,
+.chatai-monaco,
+.chatai-monaco .monaco-editor,
+.chatai-monaco .monaco-editor .overflow-guard,
+.chatai-monaco .monaco-editor .monaco-editor-background,
+.chatai-monaco .monaco-editor .margin,
+.chatai-monaco .monaco-editor .margin-view-overlays,
+.chatai-monaco .monaco-diff-editor,
+.chatai-monaco .monaco-diff-editor .overflow-guard {
+  background-color: var(--background) !important;
+}
+
+@keyframes cap-menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
