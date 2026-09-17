@@ -4,9 +4,11 @@ import { useMemo, useState } from "react";
 import { Check, MessageSquare, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { useChatStore } from "@/store/chat-store";
 import { selectEffectiveModel, useModelStore } from "@/store/model-store";
+import { useProjectStore } from "@/store/project-store";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { timeAgo } from "@/lib/utils/format";
 import { cn } from "@/lib/utils/cn";
+import { ProjectsSection } from "./ProjectsSection";
 
 export function Sidebar() {
   const isMobile = useIsMobile(1024);
@@ -21,6 +23,7 @@ export function Sidebar() {
   const setSearchQuery = useChatStore((s) => s.setSearchQuery);
   const generation = useChatStore((s) => s.generation);
   const effectiveModel = useModelStore(selectEffectiveModel);
+  const activeProjectId = useProjectStore((s) => s.activeProjectId);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -29,13 +32,15 @@ export function Sidebar() {
 
   const visible = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return chats;
-    return chats.filter(
-      (c) =>
+    return chats.filter((c) => {
+      if (activeProjectId && c.projectId !== activeProjectId) return false;
+      if (!q) return true;
+      return (
         c.title.toLowerCase().includes(q) ||
-        c.messages.some((m) => m.content.toLowerCase().includes(q)),
-    );
-  }, [chats, searchQuery]);
+        c.messages.some((m) => m.content.toLowerCase().includes(q))
+      );
+    });
+  }, [chats, searchQuery, activeProjectId]);
 
   const commitRename = (id: string) => {
     renameChat(id, editTitle);
@@ -44,11 +49,12 @@ export function Sidebar() {
 
   return (
     <div className="flex h-full flex-col">
+      <ProjectsSection />
       <div className="p-3">
         <button
           type="button"
           onClick={() => {
-            newChat(effectiveModel);
+            newChat(effectiveModel, activeProjectId);
             if (isMobile) setSidebarOpen(false);
           }}
           className="flex w-full items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"

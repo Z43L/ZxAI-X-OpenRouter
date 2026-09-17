@@ -110,3 +110,9 @@ body {
     transform: translateY(0);
   }
 }
+
+/* Vim statusbar — monaco-vim escribe dentro de este nodo. */
+.zxai-vim-statusbar {
+  user-select: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}

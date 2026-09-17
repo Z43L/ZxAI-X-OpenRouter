@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils/cn";
 import { ModelPicker } from "../models/ModelPicker";
 import { CapabilityButton } from "./CapabilityButton";
 import { CapabilityChip } from "./CapabilityChip";
+import { AttachButton } from "./AttachButton";
 import { DiamondIcon, type CapabilityMenuView } from "./CapabilityMenu";
 
 export function ComposerToolbar({
@@ -39,6 +40,7 @@ export function ComposerToolbar({
   return (
     <div className="flex items-center justify-between gap-1.5 px-2 pb-2">
       <div className="relative flex min-w-0 shrink-0 items-center gap-1.5 overflow-x-auto sm:flex-1 sm:shrink">
+        <AttachButton />
         <CapabilityButton
           open={menuOpen}
           active={config.webSearch.enabled || config.reasoning.level !== "auto"}

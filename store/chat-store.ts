@@ -1,13 +1,17 @@
 import { create } from "zustand";
 import type { Chat, FailedRequest, GenerationState, Message, RateLimitNotice, StreamingSlice } from "@/types/chat";
 import type { CapabilityConfig, Citation, SearchPhase } from "@/types/capabilities";
+import type { ParsedAttachment } from "@/types/attachments";
 import { chatRepository, chatTitleFromMessages } from "@/lib/storage/chats";
+import { generateChatTitle } from "@/lib/storage/title-generator";
 import { streamChatCompletion, type SSEChunk } from "@/lib/openrouter/chat";
 import { buildChatRequest } from "@/lib/openrouter/request-builder";
 import { isMissingModelError, refineOpenRouterError } from "@/lib/openrouter/errors";
 import { isKnownModel, pickCatalogFallback, pickModelFallbacks } from "@/lib/openrouter/models";
 import { cloneCapabilities, configToSnapshot, DEFAULT_CAPABILITIES, snapshotToConfig } from "@/lib/capabilities/defaults";
 import { mergeCitations } from "@/lib/citations/parse";
+import { buildAttachmentContext } from "@/lib/attachments";
+import { buildProjectContext } from "@/lib/projects/context-builder";
 import { useModelStore } from "@/store/model-store";
 import { useSettingsStore } from "@/store/settings-store";
 import { newId } from "@/lib/utils/ids";
@@ -29,6 +33,9 @@ interface StreamBuffer {
   searchFailed: boolean;
   didWebSearch: boolean;
   dirty: boolean;
+  images: Message["images"];
+  audio: Message["audio"];
+  video: Message["video"];
 }
 
 let buffer: StreamBuffer | null = null;
@@ -49,12 +56,13 @@ export interface ChatState {
   hydrated: boolean;
 
   hydrate: (defaultModel: string) => void;
-  newChat: (model: string) => string;
+  newChat: (model: string, projectId?: string | null) => string;
   selectChat: (id: string | null) => void;
   renameChat: (id: string, title: string) => void;
   deleteChat: (id: string, fallbackModel: string) => void;
   setSidebarOpen: (open: boolean) => void;
   setSearchQuery: (q: string) => void;
+  setChatProject: (chatId: string, projectId: string | null) => void;
 
   send: (text: string, opts: SendOpts) => Promise<void>;
   stop: () => void;
@@ -90,6 +98,7 @@ export interface SendOpts {
   /** Fallbacks OpenRouter (solo ids gratuitos). */
   fallbacks?: string[];
   capabilities?: CapabilityConfig;
+  attachments?: ParsedAttachment[];
 }
 
 function toPayload(messages: Message[]): { role: Message["role"]; content: string }[] {
@@ -116,12 +125,13 @@ export const useChatStore = create<ChatState>()((set, get) => {
     set({ chats: chatRepository.list() });
   }
 
-  function appendUserMessage(chatId: string, text: string): Message {
+  function appendUserMessage(chatId: string, text: string, attachments?: ParsedAttachment[]): Message {
     const msg: Message = {
       id: newId(),
       role: "user",
       content: text,
       status: "complete",
+      attachments: attachments && attachments.length > 0 ? attachments : undefined,
       createdAt: Date.now(),
     };
     mutateChat(chatId, (c) => {
@@ -206,6 +216,9 @@ export const useChatStore = create<ChatState>()((set, get) => {
                   searchWarning: b.searchFailed
                     ? "No se pudo consultar Internet. La respuesta puede no contener información reciente."
                     : m.searchWarning,
+                  images: b.images && b.images.length > 0 ? b.images : m.images,
+                  audio: b.audio ?? m.audio,
+                  video: b.video ?? m.video,
                   ...final,
                 },
           ),
@@ -213,6 +226,40 @@ export const useChatStore = create<ChatState>()((set, get) => {
       );
     }
     set({ chats: chatRepository.list(), streaming: null });
+
+    if (final.status === "complete") {
+      tryAutoTitle(b.chatId);
+    }
+  }
+
+  function tryAutoTitle(chatId: string) {
+    const chat = chatRepository.get(chatId);
+    if (!chat) return;
+    const looksAuto =
+      chat.title === "Nueva conversación" ||
+      chat.title.startsWith("Nueva conversación") ||
+      chat.title.length === 0;
+    if (!looksAuto) return;
+    const assistantCount = chat.messages.filter((m) => m.role === "assistant").length;
+    if (assistantCount !== 1) return;
+
+    const settings = useSettingsStore.getState();
+    const apiKey = settings.apiKey || "";
+    if (!apiKey) return;
+
+    void (async () => {
+      const title = await generateChatTitle(chat, {
+        apiKey,
+        model: useModelStore.getState().effectiveModel() || undefined,
+        siteTitle: settings.siteTitle,
+        siteReferer: settings.siteReferer,
+      });
+      if (!title) return;
+      const fresh = chatRepository.get(chatId);
+      if (!fresh) return;
+      chatRepository.update(touchChat({ ...fresh, title }));
+      set({ chats: chatRepository.list() });
+    })();
   }
 
   /** Modelo vivo del catálogo, no el id posiblemente obsoleto de sendOpts. */
@@ -263,6 +310,9 @@ export const useChatStore = create<ChatState>()((set, get) => {
       searchFailed: false,
       didWebSearch: false,
       dirty: false,
+      images: undefined,
+      audio: undefined,
+      video: undefined,
     };
     set({
       generation: "streaming",
@@ -300,6 +350,34 @@ export const useChatStore = create<ChatState>()((set, get) => {
       }
       if (chunk.searchError) {
         buffer.searchFailed = true;
+        buffer.dirty = true;
+      }
+      if (chunk.images && chunk.images.length > 0) {
+        buffer.images = (buffer.images ?? []).concat(chunk.images);
+        buffer.dirty = true;
+      }
+      if (chunk.audio) {
+        const prev = buffer.audio;
+        if (!prev) {
+          buffer.audio = {
+            format: "wav",
+            dataUrl: chunk.audio.data ? dataUrlFromBase64("wav", chunk.audio.data) : undefined,
+            transcript: chunk.audio.transcript,
+          };
+        } else if (chunk.audio.data) {
+          const a = prev.dataUrl ?? "";
+          buffer.audio = {
+            ...prev,
+            dataUrl: appendBase64(a, chunk.audio.data),
+            transcript: prev.transcript || chunk.audio.transcript,
+          };
+        } else if (chunk.audio.transcript && !prev.transcript) {
+          buffer.audio = { ...prev, transcript: chunk.audio.transcript };
+        }
+        buffer.dirty = true;
+      }
+      if (chunk.video?.url) {
+        buffer.video = { url: chunk.video.url };
         buffer.dirty = true;
       }
       if (chunk.usage) {
@@ -437,12 +515,16 @@ export const useChatStore = create<ChatState>()((set, get) => {
       }
     },
 
-    newChat: (model) => {
+    newChat: (model, projectId) => {
       aborter?.abort();
       stopFlushLoop();
       buffer = null;
       const defaults = useSettingsStore.getState().defaultCapabilities ?? DEFAULT_CAPABILITIES;
-      const chat = chatRepository.create(model, cloneCapabilities(defaults));
+      const chat = chatRepository.create(
+        model,
+        cloneCapabilities(defaults),
+        projectId === undefined ? undefined : projectId ?? undefined,
+      );
       set({
         chats: chatRepository.list(),
         activeChatId: chat.id,
@@ -465,6 +547,15 @@ export const useChatStore = create<ChatState>()((set, get) => {
       const chat = chatRepository.get(id);
       if (!chat) return;
       chatRepository.update({ ...chat, title: title.trim() || chat.title });
+      set({ chats: chatRepository.list() });
+    },
+
+    setChatProject: (chatId, projectId) => {
+      const chat = chatRepository.get(chatId);
+      if (!chat) return;
+      const next: Chat = projectId ? { ...chat, projectId } : { ...chat };
+      if (!projectId) delete next.projectId;
+      chatRepository.update(touchChat(next));
       set({ chats: chatRepository.list() });
     },
 
@@ -506,19 +597,38 @@ export const useChatStore = create<ChatState>()((set, get) => {
       const repoCaps = cloneCapabilities(base.capabilities ?? DEFAULT_CAPABILITIES);
       set({ generation: "submitting" });
 
-      const systemMsg: Message[] = opts.systemPrompt.trim()
+      const baseSystem = opts.systemPrompt.trim();
+      const attachmentContext = buildAttachmentContext(opts.attachments ?? []);
+
+      let projectContext = "";
+      const chat = chatRepository.get(chatId);
+      if (chat?.projectId) {
+        try {
+          projectContext = await buildProjectContext(chat.projectId, clean, {
+            apiKey: opts.apiKey,
+            siteTitle: opts.siteTitle,
+            siteReferer: opts.siteReferer,
+          });
+        } catch {
+          projectContext = "";
+        }
+      }
+
+      const finalSystem = [baseSystem, projectContext, attachmentContext].filter(Boolean).join("\n\n");
+
+      const systemMsg: Message[] = finalSystem
         ? [
             {
               id: newId(),
               role: "system",
-              content: opts.systemPrompt.trim(),
+              content: finalSystem,
               status: "complete",
               createdAt: Date.now(),
             },
           ]
         : [];
 
-      appendUserMessage(chatId, clean);
+      appendUserMessage(chatId, clean, opts.attachments);
       const snapshot = configToSnapshot(opts.capabilities ?? repoCaps);
       const assistant = appendAssistantPlaceholder(chatId, opts.model, snapshot);
       const payload = toPayload([...systemMsg, ...chatRepository.get(chatId)!.messages]);
@@ -597,6 +707,9 @@ export const useChatStore = create<ChatState>()((set, get) => {
       const next = cloneCapabilities({
         reasoning: { ...current.reasoning, ...patch.reasoning },
         webSearch: { ...current.webSearch, ...patch.webSearch },
+        imageGen: { ...current.imageGen, ...(patch as Partial<CapabilityConfig>).imageGen },
+        videoGen: { ...current.videoGen, ...(patch as Partial<CapabilityConfig>).videoGen },
+        audioGen: { ...current.audioGen, ...(patch as Partial<CapabilityConfig>).audioGen },
       });
       chatRepository.update({ ...chat, capabilities: next });
       set({ chats: chatRepository.list() });
@@ -605,3 +718,15 @@ export const useChatStore = create<ChatState>()((set, get) => {
     activeChat: () => selectActiveChat(get()),
   };
 });
+
+function dataUrlFromBase64(format: string, b64: string): string {
+  return `data:audio/${format};base64,${b64}`;
+}
+
+function appendBase64(prefix: string, b64: string): string {
+  if (prefix.includes(";base64,")) {
+    const i = prefix.indexOf(";base64,");
+    return prefix.slice(0, i + 8) + prefix.slice(i + 8) + b64;
+  }
+  return prefix + b64;
+}

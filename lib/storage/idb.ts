@@ -1,5 +1,5 @@
 const DB_NAME = "chatai.code.v1";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 export const IDB_STORES = {
   localWorkspaces: "local-workspaces",
@@ -7,6 +7,11 @@ export const IDB_STORES = {
   sessions: "code-sessions",
   githubToken: "github-token",
   virtualFiles: "virtual-files",
+  projects: "projects",
+  projectFiles: "project-files",
+  projectChunks: "project-chunks",
+  chatProjectLinks: "chat-project-links",
+  studioSessions: "studio-sessions",
 } as const;
 
 function openDb(): Promise<IDBDatabase> {
@@ -33,6 +38,23 @@ function openDb(): Promise<IDBDatabase> {
         if (!db.objectStoreNames.contains(IDB_STORES.virtualFiles)) {
           const store = db.createObjectStore(IDB_STORES.virtualFiles, { keyPath: "id" });
           store.createIndex("by_workspace", "workspaceId", { unique: false });
+        }
+        if (!db.objectStoreNames.contains(IDB_STORES.projects)) {
+          db.createObjectStore(IDB_STORES.projects, { keyPath: "id" });
+        }
+        if (!db.objectStoreNames.contains(IDB_STORES.projectFiles)) {
+          const store = db.createObjectStore(IDB_STORES.projectFiles, { keyPath: "id" });
+          store.createIndex("by_project", "projectId", { unique: false });
+        }
+        if (!db.objectStoreNames.contains(IDB_STORES.projectChunks)) {
+          const store = db.createObjectStore(IDB_STORES.projectChunks, { keyPath: "id" });
+          store.createIndex("by_project", "projectId", { unique: false });
+        }
+        if (!db.objectStoreNames.contains(IDB_STORES.chatProjectLinks)) {
+          db.createObjectStore(IDB_STORES.chatProjectLinks, { keyPath: "chatId" });
+        }
+        if (!db.objectStoreNames.contains(IDB_STORES.studioSessions)) {
+          db.createObjectStore(IDB_STORES.studioSessions, { keyPath: "id" });
         }
       };
       req.onsuccess = () => resolve(req.result);

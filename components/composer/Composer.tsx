@@ -13,6 +13,8 @@ import { ComposerTextarea } from "./ComposerTextarea";
 import { ComposerToolbar } from "./ComposerToolbar";
 import { CapabilityMenu, type CapabilityMenuView } from "./CapabilityMenu";
 import { ExpandedComposer, ExpandToggle } from "./ExpandedComposer";
+import { AttachmentPreview } from "./AttachmentPreview";
+import { useAttachmentStore } from "@/store/attachment-store";
 
 export function Composer({ draft, onDraftChange }: { draft: string; onDraftChange: (v: string) => void }) {
   const send = useChatStore((s) => s.send);
@@ -68,9 +70,11 @@ export function Composer({ draft, onDraftChange }: { draft: string; onDraftChang
       return;
     }
     const text = draft;
+    const attachments = useAttachmentStore.getState().attachments;
     onDraftChange("");
     setExpanded(false);
-    void send(text, { ...sendOpts, capabilities: config });
+    void send(text, { ...sendOpts, capabilities: config, attachments });
+    if (attachments.length > 0) useAttachmentStore.getState().clear();
   }, [apiKey, busy, config, draft, hydrated, onDraftChange, send, sendOpts, setSettingsOpen]);
 
   useEffect(() => {
@@ -112,6 +116,7 @@ export function Composer({ draft, onDraftChange }: { draft: string; onDraftChang
       )}
     >
       <ExpandToggle expanded={expanded} visible={showExpand} onToggle={toggleExpand} />
+      <AttachmentPreview />
       <ComposerTextarea
         ref={taRef}
         value={draft}
@@ -119,6 +124,7 @@ export function Composer({ draft, onDraftChange }: { draft: string; onDraftChang
         className={showExpand || expanded ? "pr-10" : undefined}
         onChange={onDraftChange}
         onSubmit={submit}
+        submitOnEnter={!expanded}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
       />

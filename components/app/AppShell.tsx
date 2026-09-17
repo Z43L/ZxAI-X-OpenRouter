@@ -7,6 +7,7 @@ import { useSettingsStore } from "@/store/settings-store";
 import { useAppStore } from "@/store/app-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { useGitHubStore } from "@/store/github-store";
+import { useProjectStore } from "@/store/project-store";
 import { Sidebar } from "../sidebar/Sidebar";
 import { TopBar } from "./TopBar";
 import { ChatWindow } from "../chat/ChatWindow";
@@ -48,6 +49,7 @@ export function AppShell() {
     hydrateSettings();
     void hydrateWorkspaces();
     void hydrateGitHub();
+    void useProjectStore.getState().hydrate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -106,7 +108,11 @@ export function AppShell() {
             <ChatWindow draft={draft} onDraftChange={setDraft} />
             <Composer draft={draft} onDraftChange={setDraft} />
           </>
+        ) : mode === "code" ? (
+          <CodeWorkbench />
         ) : (
+          // mode === "studio" se trata como code por ahora: Studio está oculto
+          // en la UI pero el código se conserva para iteraciones futuras.
           <CodeWorkbench />
         )}
       </main>

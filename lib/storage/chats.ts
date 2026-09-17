@@ -24,6 +24,7 @@ function migrateChat(raw: Chat): Chat {
     ...raw,
     capabilities: normalizeCapabilities(raw.capabilities),
     messages: Array.isArray(raw.messages) ? raw.messages : [],
+    projectId: typeof raw.projectId === "string" ? raw.projectId : undefined,
   };
 }
 
@@ -52,7 +53,7 @@ function saveState(state: StoredState): void {
 export interface ChatRepository {
   list(): Chat[];
   get(id: string): Chat | undefined;
-  create(model: string, capabilities?: CapabilityConfig): Chat;
+  create(model: string, capabilities?: CapabilityConfig, projectId?: string): Chat;
   update(chat: Chat): void;
   remove(id: string): void;
   clear(): void;
@@ -80,7 +81,7 @@ export class LocalStorageChatRepository implements ChatRepository {
     return this.state.chats.find((c) => c.id === id);
   }
 
-  create(model: string, capabilities?: CapabilityConfig): Chat {
+  create(model: string, capabilities?: CapabilityConfig, projectId?: string): Chat {
     const now = Date.now();
     const chat: Chat = {
       id: newId(),
@@ -90,6 +91,7 @@ export class LocalStorageChatRepository implements ChatRepository {
       updatedAt: now,
       messages: [],
       capabilities: cloneCapabilities(capabilities ?? DEFAULT_CAPABILITIES),
+      projectId,
     };
     this.state.chats.push(chat);
     this.persist();

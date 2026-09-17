@@ -11,6 +11,28 @@ import { CitationList } from "../citations/CitationList";
 import { InlineCitation } from "../citations/InlineCitation";
 import { reasoningChipLabel } from "@/lib/capabilities";
 import { MarkdownRenderer } from "../markdown/MarkdownRenderer";
+import { InlineAudio, InlineImage, InlineVideo, MediaActions } from "./MediaRenderer";
+import type { ParsedAttachment } from "@/types/attachments";
+import { FileArchive, FileText } from "lucide-react";
+
+function fmtBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function AttachmentChip({ a }: { a: ParsedAttachment }) {
+  const Icon = a.origin === "zip" ? FileArchive : FileText;
+  return (
+    <span
+      className="inline-flex max-w-[220px] items-center gap-1 rounded-full border border-zinc-200 bg-white/80 px-2 py-0.5 text-[11px] font-medium text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-200"
+      title={`${a.name} (${fmtBytes(a.bytes)})`}
+    >
+      <Icon className="h-3 w-3 shrink-0 text-zinc-500 dark:text-zinc-400" />
+      <span className="truncate">{a.name.split("/").pop()}</span>
+    </span>
+  );
+}
 
 export const MessageBubble = memo(function MessageBubble({ message }: { message: Message }) {
   const liveContent = useChatStore((s) => selectMessageContent(s, message.id));
@@ -25,10 +47,20 @@ export const MessageBubble = memo(function MessageBubble({ message }: { message:
   const citations = message.citations ?? [];
 
   if (isUser) {
+    const attachments = message.attachments ?? [];
     return (
       <div className="flex justify-end px-4 py-2 sm:px-6">
-        <div className="max-w-[85%] rounded-2xl bg-zinc-100 px-4 py-2.5 text-[15px] leading-relaxed whitespace-pre-wrap text-zinc-900 sm:max-w-[75%] dark:bg-zinc-800 dark:text-zinc-100">
-          {content}
+        <div className="flex max-w-[85%] flex-col items-end gap-1 sm:max-w-[75%]">
+          {attachments.length > 0 && (
+            <div className="flex max-w-full flex-wrap justify-end gap-1">
+              {attachments.map((a) => (
+                <AttachmentChip key={a.id} a={a} />
+              ))}
+            </div>
+          )}
+          <div className="rounded-2xl bg-zinc-100 px-4 py-2.5 text-[15px] leading-relaxed whitespace-pre-wrap text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100">
+            {content}
+          </div>
         </div>
       </div>
     );
@@ -95,6 +127,33 @@ export const MessageBubble = memo(function MessageBubble({ message }: { message:
           <span className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-zinc-400 align-middle dark:bg-zinc-500" />
         )}
       </div>
+      {!isStreaming && message.images && message.images.length > 0 && (
+        <div className="mt-3 flex flex-col gap-2">
+          {message.images.map((img, i) => (
+            <InlineImage key={i} image={img} index={i} />
+          ))}
+        </div>
+      )}
+      {!isStreaming && message.audio && (
+        <div className="mt-3">
+          <InlineAudio audio={message.audio} />
+        </div>
+      )}
+      {!isStreaming && message.video && (
+        <div className="mt-3">
+          <InlineVideo video={message.video} />
+        </div>
+      )}
+      {!isStreaming && (message.images?.length || message.audio || message.video) && (
+        <div className="mt-1.5">
+          <MediaActions
+            image={message.images?.[0]}
+            audio={message.audio}
+            video={message.video}
+            filenameBase={`media-${message.id}`}
+          />
+        </div>
+      )}
       {!isStreaming && citations.length > 0 && (
         <p className="mt-1.5 flex flex-wrap items-center gap-0.5">
           {citations.map((c, i) => (

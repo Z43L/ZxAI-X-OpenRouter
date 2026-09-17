@@ -56,6 +56,8 @@ export function TopBar() {
       <div className="mx-auto flex items-center rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-900">
         <ModeBtn active={mode === "chat"} onClick={() => setMode("chat")} icon={MessageSquare} label="Chat" />
         <ModeBtn active={mode === "code"} onClick={() => setMode("code")} icon={Code2} label="Code" />
+        {/* Studio oculto por decisión de producto: el código se conserva para
+            una próxima iteración pero no se expone en la UI. */}
       </div>
 
       <div className="ml-auto flex min-w-0 items-center gap-1">

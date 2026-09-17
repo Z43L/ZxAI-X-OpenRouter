@@ -1,6 +1,9 @@
 import type { CapabilityConfig, Citation, MessageCapabilities, SearchPhase } from "./capabilities";
+import type { ParsedAttachment } from "./attachments";
+import type { MessageAudio, MessageImage, MessageVideo } from "./media";
 
 export type { CapabilityConfig, Citation, MessageCapabilities, SearchPhase };
+export type { ParsedAttachment, MessageAudio, MessageImage, MessageVideo };
 
 export type MessageRole = "user" | "assistant" | "system";
 
@@ -46,6 +49,10 @@ export interface Message {
   capabilities?: MessageCapabilities;
   citations?: Citation[];
   searchWarning?: string;
+  attachments?: ParsedAttachment[];
+  images?: MessageImage[];
+  audio?: MessageAudio;
+  video?: MessageVideo;
   createdAt: number;
 }
 
@@ -57,6 +64,7 @@ export interface Chat {
   updatedAt: number;
   messages: Message[];
   capabilities: CapabilityConfig;
+  projectId?: string;
 }
 
 export type GenerationState =

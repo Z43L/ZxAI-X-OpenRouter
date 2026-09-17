@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { KeyRound, Settings2, Trash2, X } from "lucide-react";
+import { KeyRound, Settings2, Trash2, X, Music } from "lucide-react";
 import { useSettingsStore } from "@/store/settings-store";
 import { buildExport } from "@/lib/storage/settings";
 import { useChatStore } from "@/store/chat-store";
 import { DEFAULT_CAPABILITIES } from "@/lib/capabilities/defaults";
 import { DEFAULT_CODE_SETTINGS } from "@/types/code";
+import { isNative } from "@/lib/mobile/native";
 
 export function SettingsModal() {
   const open = useSettingsStore((s) => s.settingsOpen);
@@ -27,8 +28,10 @@ function SettingsForm() {
   const defaultCapabilities =
     useSettingsStore((s) => s.defaultCapabilities) ?? DEFAULT_CAPABILITIES;
   const code = useSettingsStore((s) => s.code) ?? DEFAULT_CODE_SETTINGS;
+  const studio = useSettingsStore((s) => s.studio);
   const setPartial = useSettingsStore((s) => s.setPartial);
   const setDefaultCapabilities = useSettingsStore((s) => s.setDefaultCapabilities);
+  const setStudio = useSettingsStore((s) => s.setStudio);
   const chats = useChatStore((s) => s.chats);
 
   // Se monta solo al abrir el modal: el estado inicial sale de los stores.
@@ -58,6 +61,7 @@ function SettingsForm() {
           siteReferer,
           defaultCapabilities,
           code,
+          studio,
         }),
       ],
       {
@@ -287,6 +291,14 @@ function SettingsForm() {
             <input type="checkbox" checked={code.wordWrap} onChange={(e) => setPartial({ code: { ...code, wordWrap: e.target.checked } })} />
             Word wrap
           </label>
+          <label className="mt-1 flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={code.vimMode}
+              onChange={(e) => setPartial({ code: { ...code, vimMode: e.target.checked } })}
+            />
+            Modo Vim (keybindings tipo Vim en el editor)
+          </label>
         </div>
 
         <div className="mt-3 rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">
@@ -346,6 +358,50 @@ function SettingsForm() {
               />
             </label>
           </div>
+        </div>
+
+        <div className="mt-3 rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">
+          <h3 className="flex items-center gap-1.5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            <Music className="h-4 w-4" /> Studio
+          </h3>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            {isNative
+              ? "Los clips se guardan en esta carpeta dentro de Documents del dispositivo."
+              : "En navegador web, los clips se descargan al disco del usuario."}
+          </p>
+          <label className="mt-2 block text-xs text-zinc-600 dark:text-zinc-300">
+            Directorio de salida
+            <input
+              value={studio.musicOutputDir}
+              onChange={(e) => setStudio({ musicOutputDir: e.target.value })}
+              placeholder={isNative ? "ZxAI/Music" : "Carpeta de Descargas"}
+              className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+            />
+          </label>
+          <label className="mt-2 block text-xs text-zinc-600 dark:text-zinc-300">
+            Formato de audio por defecto
+            <select
+              value={studio.audioFormat}
+              onChange={(e) =>
+                setStudio({ audioFormat: e.target.value as "wav" | "mp3" | "flac" | "opus" })
+              }
+              className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-sm outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+            >
+              <option value="wav">WAV</option>
+              <option value="mp3">MP3</option>
+              <option value="flac">FLAC</option>
+              <option value="opus">Opus</option>
+            </select>
+          </label>
+          <label className="mt-2 flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300">
+            <input
+              type="checkbox"
+              checked={studio.autoSave}
+              onChange={(e) => setStudio({ autoSave: e.target.checked })}
+              className="accent-zinc-900 dark:accent-zinc-100"
+            />
+            Guardar automáticamente cada clip generado
+          </label>
         </div>
 
         <div className="mt-3 flex items-center justify-between">

@@ -1,9 +1,18 @@
 import type { CapabilityConfig, CapabilityContext, OpenRouterRequest } from "@/types/capabilities";
 import { reasoningCapability } from "./reasoning";
 import { webSearchCapability } from "./web-search";
+import { imageGenCapability } from "./image-gen";
+import { videoGenCapability } from "./video-gen";
+import { audioGenCapability } from "./audio-gen";
 
 /** Capacidades que mutan el request OpenRouter. Las de UI (expand) no entran aquí. */
-export const requestCapabilities = [webSearchCapability, reasoningCapability];
+export const requestCapabilities = [
+  webSearchCapability,
+  reasoningCapability,
+  imageGenCapability,
+  videoGenCapability,
+  audioGenCapability,
+];
 
 export function resolveCapabilities(
   request: OpenRouterRequest,

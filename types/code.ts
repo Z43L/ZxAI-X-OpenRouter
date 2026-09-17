@@ -1,4 +1,8 @@
-export type AppMode = "chat" | "code";
+export type AppMode = "chat" | "code" | "studio";
+
+export function isAppMode(value: unknown): value is AppMode {
+  return value === "chat" || value === "code" || value === "studio";
+}
 
 export type ActivityView = "explorer" | "search" | "scm" | "ai";
 
@@ -45,6 +49,8 @@ export interface CodeSettings {
   minimap: boolean;
   wordWrap: boolean;
   aiPermissions: AiPermissionConfig;
+  /** Cuando true, el editor usa keybindings tipo Vim (vía monaco-vim). */
+  vimMode: boolean;
 }
 
 export interface AiPermissionConfig {
@@ -69,4 +75,5 @@ export const DEFAULT_CODE_SETTINGS: CodeSettings = {
     commit: "ask",
     pr: "ask",
   },
+  vimMode: false,
 };

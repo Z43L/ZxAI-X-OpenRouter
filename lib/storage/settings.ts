@@ -1,4 +1,4 @@
-import type { AppSettings } from "@/types/settings";
+import type { AppSettings, StudioSettings } from "@/types/settings";
 import { DEFAULT_CAPABILITIES, normalizeCapabilities } from "@/lib/capabilities/defaults";
 import { DEFAULT_CODE_SETTINGS, type CodeSettings } from "@/types/code";
 
@@ -6,13 +6,10 @@ const API_KEY_SESSION = "chatai.apikey.session";
 const API_KEY_LOCAL = "chatai.apikey";
 const SETTINGS_KEY = "chatai.settings.v1";
 
-export const DEFAULT_SETTINGS: AppSettings = {
-  temperature: 0.7,
-  systemPrompt: "",
-  siteTitle: "ZxAI",
-  siteReferer: typeof window !== "undefined" ? window.location.origin : "",
-  defaultCapabilities: DEFAULT_CAPABILITIES,
-  code: DEFAULT_CODE_SETTINGS,
+const DEFAULT_STUDIO_SETTINGS: StudioSettings = {
+  musicOutputDir: "",
+  audioFormat: "wav",
+  autoSave: false,
 };
 
 function normalizeCodeSettings(raw?: Partial<CodeSettings> | null): CodeSettings {
@@ -32,12 +29,34 @@ function normalizeCodeSettings(raw?: Partial<CodeSettings> | null): CodeSettings
       commit: "ask",
       pr: "ask",
     },
+    vimMode: Boolean(raw?.vimMode),
+  };
+}
+
+function normalizeStudioSettings(raw?: Partial<StudioSettings> | null): StudioSettings {
+  const fmt = raw?.audioFormat;
+  const validFormat: StudioSettings["audioFormat"] =
+    fmt === "mp3" || fmt === "flac" || fmt === "opus" ? fmt : "wav";
+  return {
+    musicOutputDir: typeof raw?.musicOutputDir === "string" ? raw.musicOutputDir : "",
+    audioFormat: validFormat,
+    autoSave: Boolean(raw?.autoSave),
   };
 }
 
 function isBrowser(): boolean {
   return typeof window !== "undefined";
 }
+
+export const DEFAULT_SETTINGS: AppSettings = {
+  temperature: 0.7,
+  systemPrompt: "",
+  siteTitle: "ZxAI",
+  siteReferer: typeof window !== "undefined" ? window.location.origin : "",
+  defaultCapabilities: DEFAULT_CAPABILITIES,
+  code: DEFAULT_CODE_SETTINGS,
+  studio: DEFAULT_STUDIO_SETTINGS,
+};
 
 function read(key: string, storage: Storage | null): string | null {
   try {
@@ -117,6 +136,7 @@ export function loadSettings(): AppSettings {
         },
       }),
       code: normalizeCodeSettings(parsed.code),
+      studio: normalizeStudioSettings(parsed.studio),
     };
   } catch {
     return DEFAULT_SETTINGS;

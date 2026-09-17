@@ -11,7 +11,9 @@ interface AppState {
 function readMode(): AppMode {
   try {
     const v = localStorage.getItem(MODE_KEY);
-    return v === "code" ? "code" : "chat";
+    if (v === "code") return "code";
+    if (v === "studio") return "studio";
+    return "chat";
   } catch {
     return "chat";
   }

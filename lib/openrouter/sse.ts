@@ -8,6 +8,19 @@ export interface SSEToolCall {
   function?: { name?: string; arguments?: string };
 }
 
+export interface SSEImageData {
+  url?: string;
+  image_url?: { url?: string };
+  b64_json?: string;
+}
+
+export interface SSEAudioData {
+  data?: string;
+  transcript?: string;
+  expires_at?: number;
+  id?: string;
+}
+
 export interface SSEChunk {
   id?: string;
   model?: string;
@@ -20,8 +33,8 @@ export interface SSEChunk {
     completion_tokens: number;
     total_tokens: number;
     cost?: number;
-    completion_tokens_details?: { reasoning_tokens?: number };
-    prompt_tokens_details?: { cached_tokens?: number };
+    completion_tokens_details?: { reasoning_tokens?: number; audio_tokens?: number };
+    prompt_tokens_details?: { cached_tokens?: number; audio_tokens?: number };
     server_tool_use?: { web_search_requests?: number };
   };
   annotations?: Citation[];
@@ -29,6 +42,9 @@ export interface SSEChunk {
   webSearch?: boolean;
   searchError?: boolean;
   error?: { code?: number | string; message?: string };
+  images?: SSEImageData[];
+  audio?: SSEAudioData;
+  video?: { url?: string };
 }
 
 interface RawDelta {
@@ -38,11 +54,22 @@ interface RawDelta {
   role?: string;
   tool_calls?: SSEToolCall[];
   annotations?: unknown[];
+  images?: SSEImageData[];
+  audio?: SSEAudioData;
+  video?: { url?: string };
+}
+
+interface RawMessage {
+  content?: string | null;
+  annotations?: unknown[];
+  images?: SSEImageData[];
+  audio?: SSEAudioData;
+  video?: { url?: string };
 }
 
 interface RawChoice {
   delta?: RawDelta;
-  message?: { content?: string | null; annotations?: unknown[] };
+  message?: RawMessage;
   finish_reason?: string | null;
   native_finish_reason?: string | null;
   error?: { code?: number | string; message?: string };
@@ -105,6 +132,9 @@ export function parseSSEPayload(data: string): SSEChunk | null {
     webSearch: toolCalls?.some(isWebSearchToolCall) ?? false,
     searchError: searchError || undefined,
     error: choice?.error,
+    images: delta?.images ?? choice?.message?.images ?? undefined,
+    audio: delta?.audio ?? choice?.message?.audio ?? undefined,
+    video: delta?.video ?? choice?.message?.video ?? undefined,
   };
 }
 

@@ -51,6 +51,9 @@ export interface ChatCompletionParams {
   plugins?: unknown[];
   web_search_options?: Record<string, unknown>;
   max_tool_calls?: number;
+  modalities?: string[];
+  audio?: Record<string, unknown>;
+  image_config?: Record<string, unknown>;
 }
 
 export function buildChatBody(params: ChatCompletionParams): Record<string, unknown> {
@@ -66,5 +69,8 @@ export function buildChatBody(params: ChatCompletionParams): Record<string, unkn
   if (params.plugins && params.plugins.length > 0) body.plugins = params.plugins;
   if (params.web_search_options) body.web_search_options = params.web_search_options;
   if (params.max_tool_calls !== undefined) body.max_tool_calls = params.max_tool_calls;
+  if (params.modalities && params.modalities.length > 0) body.modalities = params.modalities;
+  if (params.audio) body.audio = params.audio;
+  if (params.image_config) body.image_config = params.image_config;
   return body;
 }
